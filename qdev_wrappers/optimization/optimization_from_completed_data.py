@@ -1,35 +1,27 @@
 import numpy as np
 from qcodes.dataset.data_export import get_data_by_id
 from numpy.random import randint
-from Optimization import Optimization
-from qcodes.dataset.measurements import Measurement
+from qcodes.dataset.data_export import load_by_id
 
 
-def get_measurement_from_data(variable_params, measured_params, coordinates):
-    # currently ignores all but first independent variable
-    measurement_values = measured_params[0]['values']
-    all_indicies = []
-    param_values = []
+def get_measured_data(runid, data_names, **variable_parameters):
+    dataset = load_by_id(runid)
 
-    # find parameter values based on current 'coordinates' in parameter space
-    for i, param in enumerate(variable_params):
-        param_index = coordinates[i]
-        param_value = param['values'][param_index]
-        param_values.append(param_value)
+    param_values = [val for val in variable_parameters.values()]
+    param_data = [np.array(dataset.get_data(name)).flatten() for name in variable_parameters]
 
-    # find index that corresponds to the combination of values in param_values
-    for param, value in zip(variable_params, param_values):
-        indicies = set(np.argwhere(param['data'] == value).flatten())
-        all_indicies.append(indicies)
-    index = all_indicies[0]
-    for indicies_list in all_indicies:
-        index = index.intersection(indicies_list)
-    if len(index) != 1:
-        raise RuntimeError(f"Found {len(indicies)} measurement points matching the setpoints")
-    else:
-        index = list(index)[0]
+    measured_data = [np.array(dataset.get_data(name)).flatten() for name in data_names]
 
-    return measurement_values[index]
+    nearest_measured_value = param_data[0][np.argmin(np.abs(param_data[0] - param_values[0]))]
+    indices = set(np.argwhere(param_data[0] == nearest_measured_value).flatten())
+
+    for data, val in zip(param_data, param_values):
+        nearest_measured_value = data[np.argmin(np.abs(data - val))]
+        new_indices = np.argwhere(data == nearest_measured_value).flatten()
+        indices = indices.intersection(new_indices)
+
+    data = [d[list(indices)] for d in measured_data]
+    return data
 
 
 def get_params_dict(run_id):
@@ -57,12 +49,6 @@ def get_results(variable_params, measured_params, coordinates):
         data = get_measurement_from_data(variable_params, measured_params, coordinates)
         results.append((param['name'], data))
     return results
-
-
-
-
-
-
 
 
 
