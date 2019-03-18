@@ -4,7 +4,7 @@ from numpy.random import randint
 from qcodes.dataset.data_export import load_by_id
 
 
-def get_measured_data(runid, data_names, **variable_parameters):
+def get_measured_data(runid, *data_names, **variable_parameters):
     dataset = load_by_id(runid)
 
     param_values = [val for val in variable_parameters.values()]

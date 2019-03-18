@@ -3,7 +3,7 @@ import numpy as np
 from qdev_wrappers.optimization.optimization_from_completed_data import get_measured_data
 
 
-class Optimisation:
+class Optimization:
     def __init__(self, method, start=None, runid=None):
         self.method = method
         self.num_attempts = 0
