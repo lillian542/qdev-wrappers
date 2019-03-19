@@ -21,10 +21,12 @@ def make_optimization_method(meas_method,
         def optimize(self, *params, start=None, runid=None):
 
             self.from_runid = runid
+            self.params = [item for item in params if isinstance(item, qc.Parameter) or isinstance(item, str)]
+            self.step_size = [item for item in params if isinstance(item, float)]
 
             opt = Optimization(self, start, runid=runid)
-            opt.params = self.params = [item for item in params if isinstance(item, qc.Parameter) or isinstance(item, str)]
-            opt.step_size = self.step_size = [item for item in params if isinstance(item, float)]
+            opt.params = self.params
+            opt.step_size = self.step_size
             opt.measured_params = self.measured_params
 
             meas = Measurement()

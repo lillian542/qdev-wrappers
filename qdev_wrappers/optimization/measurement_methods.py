@@ -39,7 +39,8 @@ class ReadoutFidelityOptimization(MeasurementMethod):
         # get_data could fx be: pwa.alazar_channels.data or get_measured_data
         """defines what to call to measure"""
         if self.from_runid:
-            max_separation = self.get_data(self.from_runid, self.measured_params.keys(), **kwargs)[0]
+            measured_params = [key for key in self.measured_params.keys()]
+            max_separation = self.get_data(self.from_runid, *measured_params, **kwargs)[0]
         else:
             results = self.get_data()
             no_pi_real = results[0][:, 0]
@@ -69,11 +70,15 @@ class Rabis(MeasurementMethod):
         super(Rabis, self).__init__()
         self.measured_params = {'pi_pulse_duration': {'label': 'Pi pulse duration', 'unit': 's'}}
 
-    def measurement_function(self):
+    def measurement_function(self, **kwargs):
         """defines what to call to measure"""
+        if self.from_runid:
+            pulse_dur = self.get_data(self.from_runid, 'alazar_controller_pulse_duration', **kwargs)[0]
+            data = self.get_data(self.from_runid, 'alazar_controller_ch_0_r_records_data', **kwargs)[0]
         # get_data could fx be: pwa.alazar_channels.data or get_measured_data
-        pulse_dur = self.get_data.setpoints[0][0]
-        data = self.get_data()[0]
+        else:
+            pulse_dur = self.get_data.setpoints[0][0]
+            data = self.get_data()[0]
 
         fitter = Fitter(lsm.CosineModel())
         fit = fitter.fit(data, x=pulse_dur)
@@ -99,12 +104,16 @@ class Rabis(MeasurementMethod):
             if len(self.params) != 1:
                 raise RuntimeError(f"Trying to optimize {len(self.params)} parameters. Method expects 1 parameter.")
             param = self.params[0]
+            if self.from_runid:
+                param_name = param
+            else:
+                param_name = param.full_name
             # if scanning frequency, find maximum pi-pulse duration (frequency center)
-            if param.name == 'frequency':
+            if 'frequency' in param_name:
                 return 1/val
             # if scanning power, find power that puts pi pulse duration closest to 50 ns
-            elif param.name == 'power':
+            elif 'power' in param_name:
                 return np.abs(50e-9-val)
             else:
-                raise RuntimeError(f"I don't know how to optimize {param.full_name} based on pi pulse duration, "
+                raise RuntimeError(f"I don't know how to optimize {param_name} based on pi pulse duration, "
                                    f"because it is not included in the cost_val function")

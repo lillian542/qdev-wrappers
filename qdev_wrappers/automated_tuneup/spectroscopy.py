@@ -1,8 +1,8 @@
 import numpy as np
 from qcodes.dataset.data_export import get_data_by_id
 from qcodes.dataset.plotting import plot_by_id
-from qdev_wrappers.doNd import do0d
-from qdev_wrappers.automated_tuneup.pulse_uploads import rabi_upload, spec_upload
+from qdev_wrappers.dataset.doNd import do0d
+# from qdev_wrappers.automated_tuneup.pulse_uploads import rabi_upload, spec_upload
 from qdev_wrappers.fitting.fitter import Fitter
 from qdev_wrappers.fitting.least_squares_models import CosineModel
 
@@ -27,9 +27,9 @@ def set_frequency_center(pwa, qubit, frequency_center, frequency_span=300e6, fre
     qubit.frequency(frequency_center)
 
 
-def find_peaks(pwa=None, runid=None, plot=False, from_saved_data=False):
+def find_peaks(pwa=None, runid=None, plot=False):
 
-    if from_saved_data:
+    if runid:
         data = get_data_by_id(runid)
         mag = data[0][1]['data']
         phase = data[1][1]['data']
@@ -112,6 +112,8 @@ def find_peaks(pwa=None, runid=None, plot=False, from_saved_data=False):
 
 
 def find_and_verify_peaks(pwa, plot=False):
+    """Calls find_peaks. If any peaks are found, calls the function again, and compares.
+    Returns frequency, magnitude and width of any peaks that are found in both measurements"""
     # find initial peak locations
     (locations, mags, widths) = find_peaks(pwa, plot)
 
@@ -137,7 +139,7 @@ def find_and_verify_peaks(pwa, plot=False):
             return verified_peaks
 
 
-def get_new_center(center_frequency, move, start=5e9):
+def get_new_center(center_frequency, move=300e6, start=5e9):
     # Todo: should max be some distance below the lowest cavity instead of 6.35? Is 3.5 a resonable minimum?
     if start <= center_frequency <= 6.35e9:
         center_frequency += move
@@ -151,7 +153,10 @@ def get_new_center(center_frequency, move, start=5e9):
     return center_frequency
 
 
-def look_for_qubit(qubit, pwa, start_freq=5e9, qubit_power=-5, measure=False):
+def look_for_qubit(qubit, pwa, start_freq=5e9, qubit_power=-5, move=300e6, measure=False):
+    """starts centered on an initial guess, and looks for peaks in the spectroscopy data.
+    Scans range from start up to 6.35GHz. If nothing is found, scans down from start to 3.5GHz.
+    """
     qubit.power(qubit_power)
     qubit.status(1)
     freq_max_reached = False
@@ -179,7 +184,7 @@ def look_for_qubit(qubit, pwa, start_freq=5e9, qubit_power=-5, measure=False):
                 freq_max_reached = True
             elif center_frequency < 3.5e9:
                 freq_min_reached = True
-            center_frequency = get_new_center(center_frequency, move=300e6, start=start_freq)
+            center_frequency = get_new_center(center_frequency, move, start=start_freq)
         elif num_peaks > 4:
             qubit_power -= 3
             qubit.power(qubit_power)
@@ -200,7 +205,7 @@ def look_for_qubit(qubit, pwa, start_freq=5e9, qubit_power=-5, measure=False):
                 freq_max_reached = True
             elif center_frequency < 3.5e9:
                 freq_min_reached = True
-            center_frequency = get_new_center(center_frequency, move=300e6, start=start_freq)
+            center_frequency = get_new_center(center_frequency, move, start=start_freq)
 
     if transition_freqs is None:
         print("Searched full frequency range unsuccessfully")
@@ -216,6 +221,11 @@ def look_for_qubit(qubit, pwa, start_freq=5e9, qubit_power=-5, measure=False):
 
 
 def verify_qubit(candidates, pwa, qubit):
+    """Upload rabi pulse sequence, use fitter to check for rabi oscillations at each peak.
+    Returns True if there are oscillations at any of the frequencies, and False otherwise.
+    Also returns a list of the frequencies with oscillations.
+
+    Not tested."""
 
     is_qubit = False
     freqs = []
