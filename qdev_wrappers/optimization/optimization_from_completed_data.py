@@ -3,6 +3,12 @@ from qcodes.dataset.data_export import load_by_id
 
 
 def get_measured_data(runid, *data_names, **variable_parameters):
+    """Takes runid and variable param values, returns a corresponding cut or point
+    in the data.
+
+    args:
+        dataname from saved data (fx. 'max_separation')
+        variable parameter values (fx. frequency=5.5e9, power=-12)"""
     dataset = load_by_id(runid)
 
     param_values = [val for val in variable_parameters.values()]
